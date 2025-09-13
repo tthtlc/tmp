@@ -51,8 +51,11 @@ async function handler(req, res) {
     // Get weather forecast
     let weatherData;
     try {
+      console.log('Fetching weather data for location:', location);
       weatherData = await getFormattedWeatherForecast(location);
+      console.log('Weather data received, items count:', weatherData?.items?.length || 0);
     } catch (error) {
+      console.error('Weather API error:', error);
       const errorResponse = handleExternalAPIError('Singapore Weather API', error);
       return sendResponse(res, errorResponse);
     }
@@ -70,6 +73,7 @@ async function handler(req, res) {
     };
 
     const successResponse = createSuccessResponse(responseData);
+    console.log('Sending weather response, success:', successResponse.success);
     return sendResponse(res, successResponse);
 
   } catch (error) {

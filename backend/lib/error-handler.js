@@ -245,11 +245,22 @@ function errorMiddleware(err, req, res, next) {
 }
 
 /**
- * Async wrapper for route handlers to catch errors
+ * Async wrapper for Next.js API route handlers to catch errors
  */
 function asyncHandler(fn) {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+  return async (req, res) => {
+    try {
+      await fn(req, res);
+    } catch (error) {
+      console.error('Async handler error:', error);
+      
+      // Handle the error and send response
+      const errorResponse = handleInternalError(error, 'API handler');
+      
+      if (!res.headersSent) {
+        sendResponse(res, errorResponse);
+      }
+    }
   };
 }
 
@@ -286,16 +297,35 @@ function validateRequestParams(req, requiredParams = [], optionalParams = []) {
  * Sends a standardized API response
  */
 function sendResponse(res, data, httpStatus = HTTP_STATUS.OK) {
-  if (data.success === false) {
-    // Error response
-    res.status(data.httpStatus || HTTP_STATUS.INTERNAL_SERVER_ERROR)
-       .json({
-         success: data.success,
-         error: data.error
-       });
-  } else {
-    // Success response
-    res.status(httpStatus).json(data);
+  // Prevent multiple responses
+  if (res.headersSent) {
+    console.warn('Headers already sent, cannot send response');
+    return;
+  }
+
+  try {
+    if (data.success === false) {
+      // Error response
+      return res.status(data.httpStatus || HTTP_STATUS.INTERNAL_SERVER_ERROR)
+                .json({
+                  success: data.success,
+                  error: data.error
+                });
+    } else {
+      // Success response
+      return res.status(httpStatus).json(data);
+    }
+  } catch (error) {
+    console.error('Error sending response:', error);
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'RESPONSE_ERROR',
+          message: 'Failed to send response'
+        }
+      });
+    }
   }
 }
 
