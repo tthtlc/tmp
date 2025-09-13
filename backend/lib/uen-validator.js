@@ -154,9 +154,13 @@ function validateFormatC(uen) {
   const fifthChar = uen.charAt(4);
   if (!/^[A-Z0-9]$/.test(fifthChar)) return false;
   
-  // Next 5 characters must be digits
-  const digits = uen.substring(5, 10);
-  if (!/^\d{5}$/.test(digits)) return false;
+  // Next 5 characters (positions 5-9) must be digits, last character (position 9) is check alphabet
+  const digits = uen.substring(5, 9);
+  if (!/^\d{4}$/.test(digits)) return false;
+  
+  // Last character must be alphabetical (check alphabet)
+  const checkAlphabet = uen.charAt(9);
+  if (!/^[A-Z]$/.test(checkAlphabet)) return false;
   
   return true;
 }
@@ -183,7 +187,7 @@ function extractEntityTypeFromFormatC(uen) {
  * Returns detailed validation result
  */
 function validateUEN(uen) {
-  if (!uen || typeof uen !== 'string') {
+  if (uen === null || uen === undefined || typeof uen !== 'string') {
     return {
       isValid: false,
       format: null,
@@ -211,6 +215,7 @@ function validateUEN(uen) {
   // Try Format A validation
   if (validateFormatA(cleanUEN)) {
     return {
+      uen: cleanUEN,
       isValid: true,
       format: 'A',
       formatDescription: 'Businesses registered with ACRA',
@@ -227,6 +232,7 @@ function validateUEN(uen) {
   // Try Format B validation
   if (validateFormatB(cleanUEN)) {
     return {
+      uen: cleanUEN,
       isValid: true,
       format: 'B',
       formatDescription: 'Local companies registered with ACRA',
@@ -244,6 +250,7 @@ function validateUEN(uen) {
   if (validateFormatC(cleanUEN)) {
     const entityType = extractEntityTypeFromFormatC(cleanUEN);
     return {
+      uen: cleanUEN,
       isValid: true,
       format: 'C',
       formatDescription: 'All other entities with new UEN',
