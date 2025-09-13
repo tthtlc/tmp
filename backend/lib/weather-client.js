@@ -11,6 +11,11 @@ const WEATHER_API_ENDPOINTS = {
   secondary: 'https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast'
 };
 
+// Log API endpoints on module load
+console.log('🔗 Weather API Endpoints Configuration:');
+console.log(`   PRIMARY: ${WEATHER_API_ENDPOINTS.primary}`);
+console.log(`   SECONDARY: ${WEATHER_API_ENDPOINTS.secondary}`);
+
 // Default timeout for API requests
 const API_TIMEOUT = 10000; // 10 seconds
 
@@ -64,10 +69,10 @@ const SINGAPORE_LOCATIONS = [
 ];
 
 /**
- * Creates an axios instance with default configuration
+ * Creates an axios instance with default configuration and logging interceptors
  */
 function createWeatherAPIClient() {
-  return axios.create({
+  const client = axios.create({
     timeout: API_TIMEOUT,
     headers: {
       'Accept': 'application/json',
@@ -75,6 +80,48 @@ function createWeatherAPIClient() {
       'User-Agent': 'OneST-Weather-Client/1.0'
     }
   });
+
+  // Request interceptor for logging
+  client.interceptors.request.use(
+    (config) => {
+      console.log(`🚀 HTTP Request: ${config.method?.toUpperCase()} ${config.url}`);
+      console.log(`📋 Request Headers: ${JSON.stringify(config.headers, null, 2)}`);
+      console.log(`⏱️ Request Timeout: ${config.timeout}ms`);
+      return config;
+    },
+    (error) => {
+      console.error('❌ Request interceptor error:', error);
+      return Promise.reject(error);
+    }
+  );
+
+  // Response interceptor for logging
+  client.interceptors.response.use(
+    (response) => {
+      console.log(`📥 HTTP Response: ${response.status} ${response.statusText}`);
+      console.log(`🔗 Response URL: ${response.config.url}`);
+      console.log(`📊 Response Size: ${JSON.stringify(response.data).length} characters`);
+      console.log(`🕒 Response Headers: ${JSON.stringify(response.headers, null, 2)}`);
+      return response;
+    },
+    (error) => {
+      const status = error.response?.status || 'Network Error';
+      const statusText = error.response?.statusText || error.message;
+      const url = error.config?.url || 'Unknown URL';
+      
+      console.error(`❌ HTTP Error Response: ${status} ${statusText}`);
+      console.error(`🔗 Failed URL: ${url}`);
+      console.error(`📋 Error Details: ${error.message}`);
+      
+      if (error.response?.data) {
+        console.error(`📊 Error Response Data: ${JSON.stringify(error.response.data, null, 2)}`);
+      }
+      
+      return Promise.reject(error);
+    }
+  );
+
+  return client;
 }
 
 /**
@@ -95,11 +142,17 @@ function isCacheValid() {
  * Updates the weather cache
  */
 function updateCache(data) {
+  const itemsCount = data?.items?.length || 0;
+  const locationsCount = data?.area_metadata?.length || 0;
+  
   weatherCache = {
     data: data,
     timestamp: Date.now(),
     locations: extractLocationsFromData(data)
   };
+  
+  console.log(`💾 Cache updated: ${itemsCount} weather items, ${locationsCount} locations`);
+  console.log(`🕒 Cache will expire in ${Math.round(CACHE_DURATION / 1000)}s`);
 }
 
 /**
@@ -118,12 +171,20 @@ function extractLocationsFromData(data) {
  */
 async function fetchFromPrimaryAPI() {
   const client = createWeatherAPIClient();
+  const url = WEATHER_API_ENDPOINTS.primary;
+  
+  console.log(`🌐 Fetching from PRIMARY API: ${url}`);
   
   try {
-    const response = await client.get(WEATHER_API_ENDPOINTS.primary);
+    const response = await client.get(url);
+    console.log(`✅ PRIMARY API Response: HTTP ${response.status} ${response.statusText} from ${url}`);
+    console.log(`📊 PRIMARY API Data size: ${JSON.stringify(response.data).length} characters`);
     return response.data;
   } catch (error) {
-    console.error('Primary weather API error:', error.message);
+    const status = error.response?.status || 'Unknown';
+    const statusText = error.response?.statusText || error.message;
+    console.error(`❌ PRIMARY API Error: HTTP ${status} ${statusText} from ${url}`);
+    console.error('Primary weather API error details:', error.message);
     throw new Error(`Primary API failed: ${error.message}`);
   }
 }
@@ -133,12 +194,21 @@ async function fetchFromPrimaryAPI() {
  */
 async function fetchFromSecondaryAPI() {
   const client = createWeatherAPIClient();
+  const url = WEATHER_API_ENDPOINTS.secondary;
+  
+  console.log(`🌐 Fetching from SECONDARY API: ${url}`);
   
   try {
-    const response = await client.get(WEATHER_API_ENDPOINTS.secondary);
+    const response = await client.get(url);
+    console.log(`✅ SECONDARY API Response: HTTP ${response.status} ${response.statusText} from ${url}`);
+    console.log(`📊 SECONDARY API Data size: ${JSON.stringify(response.data).length} characters`);
+    console.log(`🕒 SECONDARY API Response time: ${response.headers['x-response-time'] || 'N/A'}`);
     return response.data;
   } catch (error) {
-    console.error('Secondary weather API error:', error.message);
+    const status = error.response?.status || 'Unknown';
+    const statusText = error.response?.statusText || error.message;
+    console.error(`❌ SECONDARY API Error: HTTP ${status} ${statusText} from ${url}`);
+    console.error('Secondary weather API error details:', error.message);
     throw new Error(`Secondary API failed: ${error.message}`);
   }
 }
@@ -147,30 +217,45 @@ async function fetchFromSecondaryAPI() {
  * Fetches weather forecast with fallback mechanism
  */
 async function fetchWeatherForecast() {
+  const startTime = Date.now();
+  
   // Return cached data if valid
   if (isCacheValid()) {
+    console.log('📋 Using cached weather data (cache is valid)');
+    console.log(`⚡ Cache age: ${Math.round((Date.now() - weatherCache.timestamp) / 1000)}s`);
     return weatherCache.data;
   }
   
+  console.log('🔄 Cache expired or empty, fetching fresh weather data...');
   let lastError = null;
   
-  // Try primary API first
+  // Try secondary API first (it's more reliable)
   try {
-    const data = await fetchFromSecondaryAPI(); // Using secondary as it's more reliable
+    console.log('🎯 Attempting SECONDARY API first (primary choice)...');
+    const data = await fetchFromSecondaryAPI();
     updateCache(data);
+    const duration = Date.now() - startTime;
+    console.log(`🎉 Weather data successfully fetched from SECONDARY API in ${duration}ms`);
     return data;
   } catch (error) {
     lastError = error;
-    console.warn('Secondary API failed, trying primary API...');
+    console.warn('⚠️ SECONDARY API failed, trying PRIMARY API as fallback...');
   }
   
   // Try primary API as fallback
   try {
+    console.log('🎯 Attempting PRIMARY API as fallback...');
     const data = await fetchFromPrimaryAPI();
     updateCache(data);
+    const duration = Date.now() - startTime;
+    console.log(`🎉 Weather data successfully fetched from PRIMARY API in ${duration}ms`);
     return data;
   } catch (error) {
-    console.error('Both weather APIs failed');
+    const duration = Date.now() - startTime;
+    console.error('💥 Both weather APIs failed');
+    console.error(`❌ Total attempt duration: ${duration}ms`);
+    console.error(`❌ Last SECONDARY API error: ${lastError?.message}`);
+    console.error(`❌ Last PRIMARY API error: ${error?.message}`);
     throw new Error(`All weather APIs failed. Last error: ${error.message}`);
   }
 }
@@ -264,6 +349,8 @@ function isValidLocation(location) {
  * Gets weather forecast with enhanced error handling and formatting
  */
 async function getFormattedWeatherForecast(location = null) {
+  console.log(`🌤️ Getting formatted weather forecast for: ${location || 'All Singapore'}`);
+  
   try {
     const weatherData = await getWeatherForecast(location);
     
@@ -274,12 +361,20 @@ async function getFormattedWeatherForecast(location = null) {
         requestedLocation: location,
         timestamp: new Date().toISOString(),
         source: 'Singapore Government Weather API',
-        cacheUsed: isCacheValid()
+        cacheUsed: isCacheValid(),
+        apiEndpoints: {
+          primary: WEATHER_API_ENDPOINTS.primary,
+          secondary: WEATHER_API_ENDPOINTS.secondary
+        }
       }
     };
     
+    console.log(`✅ Formatted weather data ready for: ${location || 'All Singapore'}`);
+    console.log(`📊 Final data contains ${formattedData.items?.length || 0} forecast items`);
+    
     return formattedData;
   } catch (error) {
+    console.error(`❌ Failed to get formatted weather forecast: ${error.message}`);
     throw new Error(`Failed to get weather forecast: ${error.message}`);
   }
 }
