@@ -64,7 +64,7 @@ describe('UEN Validator', () => {
     });
 
     test('rejects incorrect Format C UEN', () => {
-      expect(validateFormatC('X09LL0001B')).toBe(false); // Invalid entity type
+      expect(validateFormatC('Z09LL0001B')).toBe(false); // Invalid entity type (Z is not valid)
       expect(validateFormatC('T9LL0001B')).toBe(false); // Invalid year format
       expect(validateFormatC('T09L0001B')).toBe(false); // Missing character
       expect(validateFormatC('T09LL001B')).toBe(false); // Too short
