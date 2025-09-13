@@ -21,10 +21,17 @@ const API_TIMEOUT = 10000; // 10 seconds
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Separate caches for different data types
 let weatherCache = {
-  data: null,
-  timestamp: null,
-  locations: null
+  // Cache for complete/unfiltered data (All Singapore)
+  complete: {
+    data: null,
+    timestamp: null,
+    locations: null
+  },
+  // Cache for filtered data by location
+  filtered: new Map() // key: location, value: { data, timestamp }
 };
 
 /**
@@ -125,34 +132,69 @@ function createWeatherAPIClient() {
 }
 
 /**
- * Checks if cached data is still valid
+ * Checks if cached data is still valid for complete data
  */
-function isCacheValid() {
-  if (!weatherCache.data || !weatherCache.timestamp) {
+function isCompleteCacheValid() {
+  if (!weatherCache.complete.data || !weatherCache.complete.timestamp) {
     return false;
   }
   
   const now = Date.now();
-  const cacheAge = now - weatherCache.timestamp;
+  const cacheAge = now - weatherCache.complete.timestamp;
   
   return cacheAge < CACHE_DURATION;
 }
 
 /**
- * Updates the weather cache
+ * Checks if cached data is still valid for a specific location
  */
-function updateCache(data) {
+function isLocationCacheValid(location) {
+  if (!location || !weatherCache.filtered.has(location)) {
+    return false;
+  }
+  
+  const cachedItem = weatherCache.filtered.get(location);
+  if (!cachedItem.data || !cachedItem.timestamp) {
+    return false;
+  }
+  
+  const now = Date.now();
+  const cacheAge = now - cachedItem.timestamp;
+  
+  return cacheAge < CACHE_DURATION;
+}
+
+/**
+ * Updates the complete weather cache (for All Singapore)
+ */
+function updateCompleteCache(data) {
   const itemsCount = data?.items?.length || 0;
   const locationsCount = data?.area_metadata?.length || 0;
   
-  weatherCache = {
+  weatherCache.complete = {
     data: data,
     timestamp: Date.now(),
     locations: extractLocationsFromData(data)
   };
   
-  console.log(`💾 Cache updated: ${itemsCount} weather items, ${locationsCount} locations`);
-  console.log(`🕒 Cache will expire in ${Math.round(CACHE_DURATION / 1000)}s`);
+  console.log(`💾 COMPLETE cache updated: ${itemsCount} weather items, ${locationsCount} locations`);
+  console.log(`🕒 COMPLETE cache will expire in ${Math.round(CACHE_DURATION / 1000)}s`);
+}
+
+/**
+ * Updates the location-specific weather cache
+ */
+function updateLocationCache(location, data) {
+  const itemsCount = data?.items?.length || 0;
+  const locationsCount = data?.area_metadata?.length || 0;
+  
+  weatherCache.filtered.set(location, {
+    data: data,
+    timestamp: Date.now()
+  });
+  
+  console.log(`💾 LOCATION cache updated for "${location}": ${itemsCount} weather items, ${locationsCount} locations`);
+  console.log(`🕒 LOCATION cache will expire in ${Math.round(CACHE_DURATION / 1000)}s`);
 }
 
 /**
@@ -214,28 +256,28 @@ async function fetchFromSecondaryAPI() {
 }
 
 /**
- * Fetches weather forecast with fallback mechanism
+ * Fetches complete weather forecast with fallback mechanism (for All Singapore)
  */
-async function fetchWeatherForecast() {
+async function fetchCompleteWeatherForecast() {
   const startTime = Date.now();
   
   // Return cached data if valid
-  if (isCacheValid()) {
-    console.log('📋 Using cached weather data (cache is valid)');
-    console.log(`⚡ Cache age: ${Math.round((Date.now() - weatherCache.timestamp) / 1000)}s`);
-    return weatherCache.data;
+  if (isCompleteCacheValid()) {
+    console.log('📋 Using cached COMPLETE weather data (cache is valid)');
+    console.log(`⚡ COMPLETE cache age: ${Math.round((Date.now() - weatherCache.complete.timestamp) / 1000)}s`);
+    return weatherCache.complete.data;
   }
   
-  console.log('🔄 Cache expired or empty, fetching fresh weather data...');
+  console.log('🔄 COMPLETE cache expired or empty, fetching fresh weather data...');
   let lastError = null;
   
   // Try secondary API first (it's more reliable)
   try {
     console.log('🎯 Attempting SECONDARY API first (primary choice)...');
     const data = await fetchFromSecondaryAPI();
-    updateCache(data);
+    updateCompleteCache(data);
     const duration = Date.now() - startTime;
-    console.log(`🎉 Weather data successfully fetched from SECONDARY API in ${duration}ms`);
+    console.log(`🎉 COMPLETE weather data successfully fetched from SECONDARY API in ${duration}ms`);
     return data;
   } catch (error) {
     lastError = error;
@@ -246,9 +288,9 @@ async function fetchWeatherForecast() {
   try {
     console.log('🎯 Attempting PRIMARY API as fallback...');
     const data = await fetchFromPrimaryAPI();
-    updateCache(data);
+    updateCompleteCache(data);
     const duration = Date.now() - startTime;
-    console.log(`🎉 Weather data successfully fetched from PRIMARY API in ${duration}ms`);
+    console.log(`🎉 COMPLETE weather data successfully fetched from PRIMARY API in ${duration}ms`);
     return data;
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -302,13 +344,30 @@ function filterByLocation(weatherData, location) {
  */
 async function getWeatherForecast(location = null) {
   try {
-    const weatherData = await fetchWeatherForecast();
-    
-    if (location) {
-      return filterByLocation(weatherData, location);
+    // If no location specified, return complete data
+    if (!location) {
+      console.log('🌍 Getting weather forecast for ALL Singapore (no location filter)');
+      return await fetchCompleteWeatherForecast();
     }
     
-    return weatherData;
+    // Check if we have cached filtered data for this location
+    if (isLocationCacheValid(location)) {
+      console.log(`📋 Using cached LOCATION data for "${location}" (cache is valid)`);
+      const cachedItem = weatherCache.filtered.get(location);
+      console.log(`⚡ LOCATION cache age: ${Math.round((Date.now() - cachedItem.timestamp) / 1000)}s`);
+      return cachedItem.data;
+    }
+    
+    console.log(`🎯 Getting weather forecast for specific location: "${location}"`);
+    
+    // Get complete data first
+    const completeWeatherData = await fetchCompleteWeatherForecast();
+    
+    // Filter by location and cache the result
+    const filteredData = filterByLocation(completeWeatherData, location);
+    updateLocationCache(location, filteredData);
+    
+    return filteredData;
   } catch (error) {
     console.error('Error getting weather forecast:', error);
     throw error;
@@ -320,8 +379,8 @@ async function getWeatherForecast(location = null) {
  */
 function getAvailableLocations() {
   // Return cached locations if available
-  if (weatherCache.locations && weatherCache.locations.length > 0) {
-    return weatherCache.locations;
+  if (weatherCache.complete.locations && weatherCache.complete.locations.length > 0) {
+    return weatherCache.complete.locations;
   }
   
   // Return default locations
@@ -354,6 +413,9 @@ async function getFormattedWeatherForecast(location = null) {
   try {
     const weatherData = await getWeatherForecast(location);
     
+    // Determine cache status based on location
+    const cacheUsed = location ? isLocationCacheValid(location) : isCompleteCacheValid();
+    
     // Add metadata about the request
     const formattedData = {
       ...weatherData,
@@ -361,7 +423,8 @@ async function getFormattedWeatherForecast(location = null) {
         requestedLocation: location,
         timestamp: new Date().toISOString(),
         source: 'Singapore Government Weather API',
-        cacheUsed: isCacheValid(),
+        cacheUsed: cacheUsed,
+        cacheType: location ? 'location-specific' : 'complete',
         apiEndpoints: {
           primary: WEATHER_API_ENDPOINTS.primary,
           secondary: WEATHER_API_ENDPOINTS.secondary
@@ -384,10 +447,14 @@ async function getFormattedWeatherForecast(location = null) {
  */
 function clearCache() {
   weatherCache = {
-    data: null,
-    timestamp: null,
-    locations: null
+    complete: {
+      data: null,
+      timestamp: null,
+      locations: null
+    },
+    filtered: new Map()
   };
+  console.log('🗑️ All weather caches cleared');
 }
 
 /**
@@ -395,11 +462,17 @@ function clearCache() {
  */
 function getCacheStatus() {
   return {
-    hasData: !!weatherCache.data,
-    timestamp: weatherCache.timestamp,
-    age: weatherCache.timestamp ? Date.now() - weatherCache.timestamp : null,
-    isValid: isCacheValid(),
-    locationsCount: weatherCache.locations ? weatherCache.locations.length : 0
+    complete: {
+      hasData: !!weatherCache.complete.data,
+      timestamp: weatherCache.complete.timestamp,
+      age: weatherCache.complete.timestamp ? Date.now() - weatherCache.complete.timestamp : null,
+      isValid: isCompleteCacheValid(),
+      locationsCount: weatherCache.complete.locations ? weatherCache.complete.locations.length : 0
+    },
+    filtered: {
+      cacheCount: weatherCache.filtered.size,
+      locations: Array.from(weatherCache.filtered.keys())
+    }
   };
 }
 
