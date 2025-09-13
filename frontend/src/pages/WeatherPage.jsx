@@ -31,10 +31,22 @@ const WeatherPage = () => {
     setError(null)
 
     try {
+      console.log('🌤️ Frontend: Loading weather forecast for location:', location)
       const response = await weatherAPI.getForecast(location)
+      console.log('📊 Frontend: Received API response:', response)
+      console.log('📊 Frontend: Response data structure:', {
+        hasData: !!response.data,
+        hasItems: !!response.data?.items,
+        itemsLength: response.data?.items?.length,
+        hasAreaMetadata: !!response.data?.area_metadata,
+        firstItem: response.data?.items?.[0],
+        firstItemForecasts: response.data?.items?.[0]?.forecasts?.length
+      })
+      
       setWeatherData(response.data)
       setLastUpdated(new Date())
     } catch (err) {
+      console.error('❌ Frontend: Weather API error:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -77,8 +89,25 @@ const WeatherPage = () => {
   }
 
   const getCurrentItem = () => {
-    if (!weatherData?.items || weatherData.items.length === 0) return null
-    return weatherData.items[0]
+    console.log('🔍 getCurrentItem called:', {
+      hasWeatherData: !!weatherData,
+      hasItems: !!weatherData?.items,
+      itemsLength: weatherData?.items?.length,
+      firstItem: weatherData?.items?.[0]
+    })
+    
+    if (!weatherData?.items || weatherData.items.length === 0) {
+      console.log('❌ getCurrentItem: No items available')
+      return null
+    }
+    
+    const currentItem = weatherData.items[0]
+    console.log('✅ getCurrentItem: Returning item:', {
+      hasForecasts: !!currentItem?.forecasts,
+      forecastsLength: currentItem?.forecasts?.length
+    })
+    
+    return currentItem
   }
 
   const getValidPeriod = () => {

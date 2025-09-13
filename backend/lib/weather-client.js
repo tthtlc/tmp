@@ -221,6 +221,15 @@ async function fetchFromPrimaryAPI() {
     const response = await client.get(url);
     console.log(`✅ PRIMARY API Response: HTTP ${response.status} ${response.statusText} from ${url}`);
     console.log(`📊 PRIMARY API Data size: ${JSON.stringify(response.data).length} characters`);
+    
+    // Singapore API returns { code: 0, data: { area_metadata: [...], items: [...] } }
+    // We need to extract the actual data part
+    if (response.data && response.data.data) {
+      console.log(`🔍 PRIMARY API: Extracting data from wrapper, items: ${response.data.data.items?.length || 0}`);
+      return response.data.data;
+    }
+    
+    console.warn(`⚠️ PRIMARY API: Unexpected response structure, returning raw data`);
     return response.data;
   } catch (error) {
     const status = error.response?.status || 'Unknown';
@@ -245,6 +254,15 @@ async function fetchFromSecondaryAPI() {
     console.log(`✅ SECONDARY API Response: HTTP ${response.status} ${response.statusText} from ${url}`);
     console.log(`📊 SECONDARY API Data size: ${JSON.stringify(response.data).length} characters`);
     console.log(`🕒 SECONDARY API Response time: ${response.headers['x-response-time'] || 'N/A'}`);
+    
+    // Singapore API returns { code: 0, data: { area_metadata: [...], items: [...] } }
+    // We need to extract the actual data part
+    if (response.data && response.data.data) {
+      console.log(`🔍 SECONDARY API: Extracting data from wrapper, items: ${response.data.data.items?.length || 0}`);
+      return response.data.data;
+    }
+    
+    console.warn(`⚠️ SECONDARY API: Unexpected response structure, returning raw data`);
     return response.data;
   } catch (error) {
     const status = error.response?.status || 'Unknown';
