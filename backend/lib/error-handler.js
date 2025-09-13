@@ -299,7 +299,7 @@ function sendResponse(res, data, httpStatus = HTTP_STATUS.OK) {
   }
 }
 
-module.exports = {
+export {
   ERROR_CODES,
   HTTP_STATUS,
   createErrorResponse,

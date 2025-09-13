@@ -2,6 +2,7 @@
   "name": "onest-backend",
   "version": "1.0.0",
   "description": "OneST Web Portal Backend API",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "dev": "next dev -p 3001",

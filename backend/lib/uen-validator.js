@@ -305,7 +305,7 @@ function getFormatExamples() {
   };
 }
 
-module.exports = {
+export {
   validateUEN,
   validateFormatA,
   validateFormatB,

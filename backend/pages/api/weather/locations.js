@@ -4,14 +4,14 @@
  * Returns list of available Singapore locations for weather forecast
  */
 
-const { getAvailableLocations, getCacheStatus } = require('../../../lib/weather-client');
-const { 
+import { getAvailableLocations, getCacheStatus } from '../../../lib/weather-client.js';
+import { 
   createSuccessResponse, 
   handleMethodNotAllowed,
   handleInternalError,
   sendResponse,
   asyncHandler
-} = require('../../../lib/error-handler');
+} from '../../../lib/error-handler.js';
 
 /**
  * Main handler for weather locations endpoint
@@ -53,4 +53,4 @@ async function handler(req, res) {
 }
 
 // Export with async error handling
-module.exports = asyncHandler(handler);
+export default asyncHandler(handler);

@@ -4,14 +4,14 @@
  * Returns information about UEN formats and entity types
  */
 
-const { getFormatExamples, getAllEntityTypes } = require('../../../lib/uen-validator');
-const { 
+import { getFormatExamples, getAllEntityTypes } from '../../../lib/uen-validator.js';
+import { 
   createSuccessResponse, 
   handleMethodNotAllowed,
   handleInternalError,
   sendResponse,
   asyncHandler
-} = require('../../../lib/error-handler');
+} from '../../../lib/error-handler.js';
 
 /**
  * Main handler for UEN formats endpoint
@@ -54,4 +54,4 @@ async function handler(req, res) {
 }
 
 // Export with async error handling
-module.exports = asyncHandler(handler);
+export default asyncHandler(handler);

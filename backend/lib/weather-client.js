@@ -3,7 +3,7 @@
  * Handles communication with Singapore Weather APIs
  */
 
-const axios = require('axios');
+import axios from 'axios';
 
 // API endpoints
 const WEATHER_API_ENDPOINTS = {
@@ -308,7 +308,7 @@ function getCacheStatus() {
   };
 }
 
-module.exports = {
+export {
   getWeatherForecast,
   getFormattedWeatherForecast,
   getAvailableLocations,

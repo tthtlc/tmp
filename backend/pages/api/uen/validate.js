@@ -3,8 +3,8 @@
  * GET /api/uen/validate?uen={uen}
  */
 
-const { validateUEN, getFormatExamples } = require('../../../lib/uen-validator');
-const { 
+import { validateUEN, getFormatExamples } from '../../../lib/uen-validator.js';
+import { 
   createSuccessResponse, 
   handleValidationError, 
   handleMethodNotAllowed,
@@ -13,7 +13,7 @@ const {
   sendResponse,
   asyncHandler,
   HTTP_STATUS
-} = require('../../../lib/error-handler');
+} from '../../../lib/error-handler.js';
 
 /**
  * Main handler for UEN validation endpoint
@@ -66,4 +66,4 @@ async function handler(req, res) {
 }
 
 // Export with async error handling
-module.exports = asyncHandler(handler);
+export default asyncHandler(handler);

@@ -3,14 +3,14 @@
  * Tests for the UEN validation logic
  */
 
-const {
+import {
   validateUEN,
   validateFormatA,
   validateFormatB,
   validateFormatC,
   getEntityType,
   getFormatExamples
-} = require('../../lib/uen-validator');
+} from '../../lib/uen-validator.js';
 
 describe('UEN Validator', () => {
   describe('validateFormatA', () => {

@@ -4,13 +4,13 @@
  * Returns system health status and API availability
  */
 
-const { getCacheStatus } = require('../../lib/weather-client');
-const { 
+import { getCacheStatus } from '../../lib/weather-client.js';
+import { 
   createSuccessResponse, 
   handleMethodNotAllowed,
   sendResponse,
   asyncHandler
-} = require('../../lib/error-handler');
+} from '../../lib/error-handler.js';
 
 /**
  * Main handler for health check endpoint
@@ -80,4 +80,4 @@ async function handler(req, res) {
 }
 
 // Export with async error handling
-module.exports = asyncHandler(handler);
+export default asyncHandler(handler);

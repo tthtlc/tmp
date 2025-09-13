@@ -3,12 +3,12 @@
  * GET /api/weather/forecast?location={location}
  */
 
-const { 
+import { 
   getFormattedWeatherForecast, 
   isValidLocation, 
   getAvailableLocations 
-} = require('../../../lib/weather-client');
-const { 
+} from '../../../lib/weather-client.js';
+import { 
   createSuccessResponse, 
   handleValidationError,
   handleMethodNotAllowed,
@@ -16,7 +16,7 @@ const {
   handleInternalError,
   sendResponse,
   asyncHandler
-} = require('../../../lib/error-handler');
+} from '../../../lib/error-handler.js';
 
 /**
  * Main handler for weather forecast endpoint
@@ -79,4 +79,4 @@ async function handler(req, res) {
 }
 
 // Export with async error handling
-module.exports = asyncHandler(handler);
+export default asyncHandler(handler);
